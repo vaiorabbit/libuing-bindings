@@ -1,0 +1,3 @@
+[submodule "third_party/libui-ng"]
+	path = third_party/libui-ng
+	url = https://github.com/libui-ng/libui-ng.git
