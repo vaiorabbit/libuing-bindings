@@ -3,6 +3,7 @@
 	* Added build script for Windows
 	* Added setup_dll.rb for samples
 	* Added libui-ng as a submodule
+	* sample/control_gallery.rb: Added
 
 2022-12-10  vaiorabbit  <http://twitter.com/vaiorabbit>
 
