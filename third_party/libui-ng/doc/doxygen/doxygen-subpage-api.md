@@ -1,3 +1,0 @@
-## API
-
-See ui.h
