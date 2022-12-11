@@ -1,4 +1,4 @@
-require_relative '../lib/libuing'
+require_relative 'util/setup_dll'
 
 # Ref.: https://github.com/ffi/ffi/wiki/Callbacks
 onClosing = FFI::Function.new(:int, [:pointer, :pointer]) do |sender, sender_data|
@@ -8,7 +8,6 @@ onClosing = FFI::Function.new(:int, [:pointer, :pointer]) do |sender, sender_dat
 end
 
 if __FILE__ == $PROGRAM_NAME
-  UI.load_lib(Dir.pwd + '/../lib/libui.dylib')
   init_opts = UI::InitOptions.new
   UI.Init(init_opts)
 
