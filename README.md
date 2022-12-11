@@ -2,12 +2,14 @@
 
 # libuing-bindings : Yet another libui-ng wrapper for Ruby #
 
+Yet another [libui-ng](https://github.com/libui-ng/libui-ng) wrapper for Ruby.
+
 *   Created : 2022-12-10
-*   Last modified : 2022-12-10
+*   Last modified : 2022-12-11
 
 ## Features ##
 
-*   Generated semi-automatically
+*   Generated semi-automatically by parsing actual C header ([ui.h](https://github.com/libui-ng/libui-ng/blob/master/ui.h))
 *   Based on Ruby/FFI
     *   No need to build C extension library
 

@@ -1,3 +1,9 @@
+2022-12-11  vaiorabbit  <http://twitter.com/vaiorabbit>
+
+	* Added build script for Windows
+	* Added setup_dll.rb for samples
+	* Added libui-ng as a submodule
+
 2022-12-10  vaiorabbit  <http://twitter.com/vaiorabbit>
 
 	* initial commit
