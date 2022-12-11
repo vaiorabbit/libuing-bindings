@@ -90,10 +90,12 @@ def generate_macrodefine(ctx, indent = ""):
         if macro_value != None:
             print(indent + "%s = %s" % (macro_name[2:], macro_value[0]), file = sys.stdout) # [2:] to omit first 2 characters ('ui')
 
+
 def generate_enum(ctx, indent = ""):
     for enum_name, enum_value in ctx.decl_enums.items():
         for enum in enum_value:
             print(indent + "%s = %s" % (enum[0][2:], enum[1]), file = sys.stdout) # [2:] to omit first 2 characters ('ui')
+
 
 def generate_typedef(ctx, indent = "", typedef_prefix="", typedef_postfix=""):
     if typedef_prefix != "":
@@ -112,12 +114,19 @@ def generate_typedef(ctx, indent = "", typedef_prefix="", typedef_postfix=""):
     if typedef_postfix != "":
         print(typedef_postfix, file = sys.stdout)
 
+
 def generate_structunion(ctx, indent = "", struct_prefix="", struct_postfix="", struct_alias=None):
     if struct_prefix != "":
         print(struct_prefix, file = sys.stdout)
+    first = True
     for struct_name, struct_info in ctx.decl_structs.items():
         if struct_info == None:
             continue
+
+        if first == False:
+            print("", file = sys.stdout)
+        first = False
+
         struct_name = struct_name[2:] # [2:] to omit first 2 characters ('ui')
         print(indent + "class %s < %s" % (struct_name, struct_info.kind), file = sys.stdout)
         print(indent + "  layout(", file = sys.stdout)
@@ -127,7 +136,8 @@ def generate_structunion(ctx, indent = "", struct_prefix="", struct_postfix="", 
             else:
                 print(indent + "    :%s, [%s, %s]," % (field.element_name, field.type_kind, field.element_count), file = sys.stdout)
         print(indent + "  )", file = sys.stdout)
-        print(indent + "end\n", file = sys.stdout)
+        print(indent + "end", file = sys.stdout)
+
         if struct_alias:
             if struct_name in struct_alias.keys():
                 names = struct_alias[struct_name]
@@ -138,21 +148,21 @@ def generate_structunion(ctx, indent = "", struct_prefix="", struct_postfix="", 
     if struct_postfix != "":
         print(struct_postfix, file = sys.stdout)
 
-def generate_function(ctx, indent = "", module_name = ""):
-    print(indent + "def self.setup_%s_symbols(output_error = false)" % module_name , file = sys.stdout)
-    indent = "  "
-    print(indent + "  symbols = [", file = sys.stdout)
-    for func_name, func_info in ctx.decl_functions.items():
-        if func_info == None:
-            continue
-        print(indent + "    :%s," % func_name, file = sys.stdout)
-    print(indent + "  ]", file = sys.stdout)
 
-    print(indent + "  args = {", file = sys.stdout)
+class FunctionEntry:
+    def __init__(self, name):
+        self.name = name
+        self.retval = None
+        self.args = ""
+
+def generate_function(ctx, indent = "", module_name = ""):
+    func_entries = []
     for func_name, func_info in ctx.decl_functions.items():
         if func_info == None:
             continue
-        print(indent + "    :%s => [" % func_name, file = sys.stdout, end='')
+        func_entry = FunctionEntry(func_name)
+
+        # Arguments
         if len(func_info.args) > 0:
             # Get Ruby FFI arguments
             args_ctype_list = list(map((lambda t: str(t.type_kind)), func_info.args))
@@ -161,30 +171,33 @@ def generate_function(ctx, indent = "", module_name = ""):
             arg_is_record = lambda arg: libuing_parser.query_libuing_cindex_mapping_entry_exists(arg) and libuing_parser.get_libuing_cindex_mapping_value(arg) == "TypeKind.RECORD"
             args_ctype_list = list(map((lambda arg: arg[0].upper() + arg[1:] + ".by_value" if arg_is_record(arg) else arg), args_ctype_list))
 
-            print(', '.join(args_ctype_list), file = sys.stdout, end='')
-        print("],", file = sys.stdout)
-    print(indent + "  }", file = sys.stdout)
+            func_entry.args = ', '.join(args_ctype_list)
 
-    print(indent + "  retvals = {", file = sys.stdout)
-    for func_name, func_info in ctx.decl_functions.items():
-        if func_info == None:
-            continue
-
+        # Return value
         # Capitalize and add ".by_value" to struct return value (e.g.: Color -> Color.by_value, float3 -> Float3.by_value)
         retval_is_record = libuing_parser.query_libuing_cindex_mapping_entry_exists(func_info.retval.type_kind) and libuing_parser.get_libuing_cindex_mapping_value(func_info.retval.type_kind) == "TypeKind.RECORD"
         name = str(func_info.retval.type_kind)
         retval_str = name[0].upper() + name[1:] + ".by_value" if retval_is_record else name
 
-        print(indent + "    :%s => %s," % (func_name, retval_str), file = sys.stdout)
-    print(indent + "  }", file = sys.stdout)
+        func_entry.retval =  retval_str
+
+        func_entries.append(func_entry)
+
+    print(indent + "def self.setup_%s_symbols(output_error = false)" % module_name , file = sys.stdout)
+    indent = "  "
+    print(indent + "  entries = [", file = sys.stdout)
+    for func_entry in func_entries:
+        entry_str = f':{func_entry.name}, [{func_entry.args}], {func_entry.retval}'
+        print(indent + f'    [{entry_str}],', file = sys.stdout)
+    print(indent + "  ]", file = sys.stdout)
 
     print(indent +
-      """  symbols.each do |sym|
+      """  entries.each do |entry|
       begin
-        attach_function sym.to_s[2..], sym, args[sym], retvals[sym] # [2..] to omit first 2 characters ('ui')
+        attach_function entry[0].to_s[2..], entry[0], entry[1], entry[2] # [2..] to omit first 2 characters ('ui')
       rescue FFI::NotFoundError => error
         $stderr.puts("[Warning] Failed to import #{s}.") if output_error
-      end""".format(s="{sym} (#{error})"))
+      end""".format(s="{entry[0]} (#{error})"))
     print(indent + "  end", file = sys.stdout)
 
     indent = "  "
@@ -195,13 +208,15 @@ def generate(ctx, prefix = PREFIX, postfix = POSTFIX, *, module_name = "", table
 
     print(prefix, file = sys.stdout)
 
-    print("module UI")
+    print("module UI", file = sys.stdout)
+    print("", file = sys.stdout)
 
     indent = "  "
 
-    print(indent + "extend FFI::Library")
+    print(indent + "extend FFI::Library", file = sys.stdout)
 
     # macro
+    print("", file = sys.stdout)
     print(indent + "# Define/Macro\n", file = sys.stdout)
     generate_macrodefine(ctx, indent)
     print("", file = sys.stdout)
